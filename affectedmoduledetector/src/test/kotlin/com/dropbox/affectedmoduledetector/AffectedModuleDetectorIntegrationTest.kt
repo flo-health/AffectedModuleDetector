@@ -23,7 +23,7 @@ class AffectedModuleDetectorIntegrationTest {
         )
         tmpFolder.newFile("build.gradle").writeText(
             """plugins {
-                |   id "com.dropbox.affectedmoduledetector"
+                |   id "health.flo.affectedmoduledetector"
                 |}""".trimMargin()
         )
 
@@ -64,7 +64,7 @@ class AffectedModuleDetectorIntegrationTest {
                 |   }    
                 |}
                 |plugins {
-                |   id "com.dropbox.affectedmoduledetector"
+                |   id "health.flo.affectedmoduledetector"
                 |}
                 |allprojects {
                 |   repositories {
@@ -156,7 +156,7 @@ class AffectedModuleDetectorIntegrationTest {
                 |   }    
                 |}
                 |plugins {
-                |   id "com.dropbox.affectedmoduledetector"
+                |   id "health.flo.affectedmoduledetector"
                 |}
                 |affectedModuleDetector {
                 |   excludedModules = [ "sample-core" ]

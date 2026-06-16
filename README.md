@@ -1,22 +1,12 @@
 # Affected Module Detector
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.dropbox.affectedmoduledetector/affectedmoduledetector/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.dropbox.affectedmoduledetector/affectedmoduledetector/)
-
-[![Build Status](https://travis-ci.org/dropbox/AffectedModuleDetector.svg?branch=main)](https://travis-ci.org/dropbox/AffectedModuleDetector)
-
-[![codecov](https://codecov.io/gh/dropbox/AffectedModuleDetector/branch/main/graph/badge.svg)](https://codecov.io/gh/dropbox/AffectedModuleDetector)
-
 A Gradle Plugin to determine which modules were affected by a set of files in a commit.  One use case for this plugin is for developers who would like to only run tests in modules which have changed in a given commit.
+
+This project is a fork of https://github.com/dropbox/AffectedModuleDetector, originally developed by **Dropbox**. We thank Dropbox for their work and contributions.
 
 ## Overview
 
 The AffectedModuleDetector will look at the last commit and determine which files have changed, it will then build a dependency graph of all the modules in the project.   The detector exposes a set of APIs which can be used to determine whether a module was considered affected.
-
-### ⚠️ Maintenance Status
-
-Affected Module Detector is in maintenance mode.
-
-Only critical fixes may be merged. There are no plans for new features and no guaranteed support timeline. See [this issue](https://github.com/dropbox/AffectedModuleDetector/issues/335) for details and ownership discussion.
 
 ### Git
 
@@ -56,7 +46,7 @@ pluginManagement {
 
 // root build.gradle(.kts)
 plugins {
-  id("com.dropbox.affectedmoduledetector") version "<latest-version>"
+  id("health.flo.affectedmoduledetector") version "<latest-version>"
 }
 ```
 
@@ -71,16 +61,16 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath "com.dropbox.affectedmoduledetector:affectedmoduledetector:<LATEST_VERSION>"
+    classpath "health.flo.affectedmoduledetector:affectedmoduledetector:<LATEST_VERSION>"
   }
 }
 //rootproject
-apply plugin: "com.dropbox.affectedmoduledetector"
+apply plugin: "health.flo.affectedmoduledetector"
 ```
 
 If you want to develop a plugin using the APIs, add this to your `buildSrc`'s `dependencies` list:
 ```
-implementation("com.dropbox.affectedmoduledetector:affectedmoduledetector:<LATEST_VERSION>")
+implementation("health.flo.affectedmoduledetector:affectedmoduledetector:<LATEST_VERSION>")
 ```
 
 ## Configuration
@@ -133,7 +123,7 @@ affectedModuleDetector {
  - `excludedModules`: A list of modules that will be excluded from the build process, can be the name of a module, or a regex against the module gradle path
  - `includeUncommitted`: If uncommitted files should be considered affected
  - `top`: The top of the git log to use. Must be used in combination with configuration `includeUncommitted = false`
- - `customTasks`: set of [CustomTask](https://github.com/dropbox/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleConfiguration.kt)
+ - `customTasks`: set of [CustomTask](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleConfiguration.kt)
 
  By default, the Detector will look for `assembleAndroidDebugTest`, `connectedAndroidDebugTest`, and `testDebug`.  Modules can specify a configuration block to specify which variant tests to run:
  ```groovy
@@ -226,8 +216,8 @@ You should see zero tests run. Make a change within one of the modules and commi
 ## Custom tasks 
 
 If you want to add a custom gradle command to execute with impact analysis 
-you must declare [AffectedModuleConfiguration.CustomTask](https://github.com/dropbox/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleConfiguration.kt) 
-which is implementing the [AffectedModuleTaskType](https://github.com/dropbox/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleTaskType.kt) interface in the `build.gradle` configuration of your project:
+you must declare [AffectedModuleConfiguration.CustomTask](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleConfiguration.kt) 
+which is implementing the [AffectedModuleTaskType](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleTaskType.kt) interface in the `build.gradle` configuration of your project:
 
 ```groovy
 // ... 
@@ -248,7 +238,7 @@ affectedModuleDetector {
 **NOTE:** Please, test all your custom commands.
 If your custom task doesn't work correctly after testing, it might be that your task is quite complex 
 and to work correctly it must use more gradle api's. 
-Hence, you must create `buildSrc` module and write a custom plugin manually like [AffectedModuleDetectorPlugin](https://github.com/dropbox/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleDetectorPlugin.kt)
+Hence, you must create `buildSrc` module and write a custom plugin manually like [AffectedModuleDetectorPlugin](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleDetectorPlugin.kt)
 
 ## Notes
 
@@ -257,6 +247,8 @@ Special thanks to the AndroidX team for originally developing this project at ht
 ## License
 
     Copyright (c) 2021 Dropbox, Inc.
+
+    Copyright 2026 Flo Health, Inc.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
