@@ -123,7 +123,7 @@ affectedModuleDetector {
  - `excludedModules`: A list of modules that will be excluded from the build process, can be the name of a module, or a regex against the module gradle path
  - `includeUncommitted`: If uncommitted files should be considered affected
  - `top`: The top of the git log to use. Must be used in combination with configuration `includeUncommitted = false`
- - `customTasks`: set of [CustomTask](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleConfiguration.kt)
+ - `customTasks`: set of [CustomTask](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/health/flo/affectedmoduledetector/AffectedModuleConfiguration.kt)
 
  By default, the Detector will look for `assembleAndroidDebugTest`, `connectedAndroidDebugTest`, and `testDebug`.  Modules can specify a configuration block to specify which variant tests to run:
  ```groovy
@@ -216,8 +216,8 @@ You should see zero tests run. Make a change within one of the modules and commi
 ## Custom tasks 
 
 If you want to add a custom gradle command to execute with impact analysis 
-you must declare [AffectedModuleConfiguration.CustomTask](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleConfiguration.kt) 
-which is implementing the [AffectedModuleTaskType](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleTaskType.kt) interface in the `build.gradle` configuration of your project:
+you must declare [AffectedModuleConfiguration.CustomTask](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/health/flo/affectedmoduledetector/AffectedModuleConfiguration.kt) 
+which is implementing the [AffectedModuleTaskType](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/health/flo/affectedmoduledetector/AffectedModuleTaskType.kt) interface in the `build.gradle` configuration of your project:
 
 ```groovy
 // ... 
@@ -238,7 +238,7 @@ affectedModuleDetector {
 **NOTE:** Please, test all your custom commands.
 If your custom task doesn't work correctly after testing, it might be that your task is quite complex 
 and to work correctly it must use more gradle api's. 
-Hence, you must create `buildSrc` module and write a custom plugin manually like [AffectedModuleDetectorPlugin](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleDetectorPlugin.kt)
+Hence, you must create `buildSrc` module and write a custom plugin manually like [AffectedModuleDetectorPlugin](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/health/flo/affectedmoduledetector/AffectedModuleDetectorPlugin.kt)
 
 ## Notes
 

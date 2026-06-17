@@ -2,6 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
-    <ID>PackageNaming:ExampleUnitTest.kt$package com.dropbox.detector.sample_core</ID>
+    <ID>PackageNaming:ExampleUnitTest.kt$package health.flo.detector.sample_core</ID>
   </CurrentIssues>
 </SmellBaseline>
