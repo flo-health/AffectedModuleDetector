@@ -25,7 +25,7 @@ gradlePlugin {
     plugins {
         affectedModuleDetectorPlugin {
             id = GROUP
-            implementationClass = "com.dropbox.affectedmoduledetector.AffectedModuleDetectorPlugin"
+            implementationClass = "health.flo.affectedmoduledetector.AffectedModuleDetectorPlugin"
         }
     }
 }
