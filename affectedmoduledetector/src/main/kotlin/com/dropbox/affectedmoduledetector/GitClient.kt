@@ -31,7 +31,9 @@ import com.dropbox.affectedmoduledetector.util.toOsSpecificLineEnding
 import com.dropbox.affectedmoduledetector.util.toOsSpecificPath
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.provider.ValueSource
@@ -91,9 +93,9 @@ internal class GitClientImpl(
         project: Project,
     ): Provider<List<String>> {
         return project.providers.of(GitChangedFilesSource::class.java) {
-            it.parameters.commitShaProvider = commitShaProviderConfiguration
+            it.parameters.commitShaProvider.set(commitShaProviderConfiguration)
             it.parameters.workingDir.set(workingDir)
-            it.parameters.logger = logger
+            it.parameters.logFile.set(logger?.file)
             it.parameters.ignoredFiles.set(ignoredFiles)
         }
     }
@@ -176,9 +178,9 @@ private class RealCommandRunner(
 internal abstract class GitChangedFilesSource :
     ValueSource<List<String>, GitChangedFilesSource.Parameters> {
     interface Parameters : ValueSourceParameters {
-        var commitShaProvider: CommitShaProviderConfiguration
+        val commitShaProvider: Property<CommitShaProviderConfiguration>
         val workingDir: DirectoryProperty
-        var logger: FileLogger?
+        val logFile: RegularFileProperty
         val ignoredFiles: SetProperty<String>
     }
 
@@ -189,17 +191,18 @@ internal abstract class GitChangedFilesSource :
     private val commandRunner: GitClient.CommandRunner by lazy {
         RealCommandRunner(
             workingDir = gitRoot ?: parameters.workingDir.get().asFile,
-            logger = null
+            logger = parameters.logFile.orNull?.asFile?.let { FileLogger(it).toLogger() }
         )
     }
 
     override fun obtain(): List<String> {
-        val top = parameters.commitShaProvider.top
+        val commitShaProviderConfig = parameters.commitShaProvider.get()
+        val top = commitShaProviderConfig.top
         val sha = getSha()
 
         // use this if we don't want local changes
         val changedFiles = commandRunner.executeAndParse(
-            if (parameters.commitShaProvider.includeUncommitted) {
+            if (commitShaProviderConfig.includeUncommitted) {
                 "$CHANGED_FILES_CMD_PREFIX $sha"
             } else {
                 "$CHANGED_FILES_CMD_PREFIX $top..$sha"
@@ -227,9 +230,10 @@ internal abstract class GitChangedFilesSource :
     }
 
     private fun getSha(): Sha {
-        val specifiedBranch = parameters.commitShaProvider.specifiedBranch
-        val specifiedSha = parameters.commitShaProvider.specifiedSha
-        val type = when (parameters.commitShaProvider.type) {
+        val config = parameters.commitShaProvider.get()
+        val specifiedBranch = config.specifiedBranch
+        val specifiedSha = config.specifiedSha
+        val type = when (config.type) {
             "PreviousCommit" -> PreviousCommit()
             "ForkCommit" -> ForkCommit()
             "SpecifiedBranchCommit" -> {

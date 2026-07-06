@@ -8,7 +8,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.testing.Test
-import org.gradle.util.GradleVersion
 import org.jetbrains.annotations.VisibleForTesting
 
 /**
@@ -90,7 +89,6 @@ class AffectedModuleDetectorPlugin : Plugin<Project> {
             rootProject.tasks.register(taskType.commandByImpact) { task ->
                 task.group = CUSTOM_TASK_GROUP_NAME
                 task.description = taskType.taskDescription
-                disableConfigCache(task)
 
                 rootProject.subprojects { project ->
                     pluginIds.forEach { pluginId ->
@@ -131,7 +129,6 @@ class AffectedModuleDetectorPlugin : Plugin<Project> {
         rootProject.tasks.register(taskType.commandByImpact) { task ->
             task.group = groupName
             task.description = taskType.taskDescription
-            disableConfigCache(task)
 
             rootProject.subprojects { project ->
                 pluginIds.forEach { pluginId ->
@@ -144,13 +141,6 @@ class AffectedModuleDetectorPlugin : Plugin<Project> {
                     }
                 }
             }
-        }
-    }
-
-    @Suppress("UnstableApiUsage")
-    private fun disableConfigCache(task: Task) {
-        if (GradleVersion.current() >= GradleVersion.version("7.4")) {
-            task.notCompatibleWithConfigurationCache("AMD requires knowledge of what has changed in the file system so we can not cache those values (https://github.com/dropbox/AffectedModuleDetector/issues/150)")
         }
     }
 
@@ -169,16 +159,15 @@ class AffectedModuleDetectorPlugin : Plugin<Project> {
         project.pluginManager.withPlugin(pluginId) {
             getAffectedPath(testType, project)?.let { path ->
                 val pathOrNull = project.tasks.findByPath(path)
-                val onlyIf = when {
-                    pathOrNull == null -> false
-                    !AffectedModuleDetector.isProjectEnabled(pathOrNull.project) -> true
-                    else -> AffectedModuleDetector.isProjectAffected(pathOrNull.project)
-                }
+                if (pathOrNull == null) return@withPlugin
 
-                if (onlyIf && AffectedModuleDetector.isProjectProvided(project) && !isExcludedModule(config, path)) {
-                    task.dependsOn(path)
-                }
-                pathOrNull?.onlyIf { onlyIf }
+                val isProvided = AffectedModuleDetector.isProjectProvided(project)
+                if (!isProvided || isExcludedModule(config, path)) return@withPlugin
+
+                task.dependsOn(path)
+                // Defer the affected/not-affected decision to execution time via configureTaskGuard
+                // so neither the result nor any Project/Task reference is baked into the cache.
+                AffectedModuleDetector.configureTaskGuard(pathOrNull)
             }
         }
     }

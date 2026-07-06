@@ -32,7 +32,10 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.Logger
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -155,28 +158,20 @@ abstract class AffectedModuleDetector(protected val logger: Logger?) {
                             "extension added."
                 }
 
-            val distDir = if (config.logFolder != null) {
-                val distDir = File(config.logFolder!!)
-                if (!distDir.exists()) {
-                    distDir.mkdirs()
-                }
-                distDir
+            val logFile = if (config.logFolder != null) {
+                File(config.logFolder!!).resolve(config.logFilename)
             } else {
-                rootProject.rootDir
+                rootProject.rootDir.resolve(config.logFilename)
             }
-
-            val outputFile = distDir.resolve(config.logFilename).also {
-                it.writeText("")
-            }
-            val logger = FileLogger(outputFile)
 
             val enabled = isProjectEnabled(rootProject)
             if (!enabled) {
                 val provider =
                     setupWithParams(rootProject) { spec ->
                         val params = spec.parameters
-                        params.acceptAll = true
-                        params.log = logger
+                        params.acceptAll.set(true)
+                        params.logFile.set(logFile)
+                        params.workingDir.set(rootProject.projectDir)
                     }
                 instance.wrapped = provider
                 return
@@ -195,14 +190,11 @@ abstract class AffectedModuleDetector(protected val logger: Logger?) {
                 }
             }
 
-            val modules =
-                getModulesProperty(
-                    rootProject
-                )
+            val modules = getModulesProperty(rootProject)
 
             val gitClient = GitClientImpl(
                 rootProject.projectDir,
-                logger,
+                null,
                 commitShaProviderConfiguration = CommitShaProviderConfiguration(
                     type = config.compareFrom,
                     specifiedBranch = config.specifiedBranch,
@@ -213,23 +205,22 @@ abstract class AffectedModuleDetector(protected val logger: Logger?) {
                 ignoredFiles = config.ignoredFiles
             )
 
-            logger.lifecycle("projects evaluated")
-            val projectGraph = ProjectGraph(rootProject, logger.toLogger())
-            val dependencyTracker = DependencyTracker(rootProject, logger.toLogger())
+            val fileLogger = FileLogger(logFile)
+            val projectGraph = ProjectGraph(rootProject, fileLogger.toLogger())
+            val dependencyTracker = DependencyTracker(rootProject, fileLogger.toLogger())
             val provider = setupWithParams(rootProject) { spec ->
                 val parameters = spec.parameters
-                parameters.acceptAll = false
-                parameters.projectGraph = projectGraph
-                parameters.dependencyTracker = dependencyTracker
-                parameters.log = logger
-                parameters.ignoreUnknownProjects = true
-                parameters.projectSubset = subset
-                parameters.modules = modules
-                parameters.config = config
-                parameters.gitChangedFilesProvider = gitClient.findChangedFiles(rootProject)
-                parameters.gitRoot.set(gitClient.getGitRoot())
+                parameters.acceptAll.set(false)
+                parameters.projectGraph.set(projectGraph)
+                parameters.dependencyTracker.set(dependencyTracker)
+                parameters.logFile.set(logFile)
+                parameters.ignoreUnknownProjects.set(true)
+                parameters.projectSubset.set(subset)
+                if (modules != null) parameters.modules.set(modules.toList())
+                parameters.config.set(config)
+                parameters.gitChangedFilesProvider.set(gitClient.findChangedFiles(rootProject))
+                parameters.workingDir.set(rootProject.projectDir)
             }
-            logger.info("Using real detector with $subset")
             instance.wrapped = provider
         }
 
@@ -288,10 +279,13 @@ abstract class AffectedModuleDetector(protected val logger: Logger?) {
         @Throws(GradleException::class)
         @JvmStatic
         fun configureTaskGuard(task: Task) {
+            // Capture only serializable values (String path) rather than live Task/Project
+            // references, which are not configuration-cache compatible.
+            val projectPath = task.project.path
+            val detectorExtension = task.project.rootProject.extensions.getByName(ROOT_PROP_NAME)
+                    as AffectedModuleDetectorWrapper
             task.onlyIf {
-                getOrThrow(
-                    task.project
-                ).shouldInclude(task.project.projectPath)
+                detectorExtension.shouldInclude(ProjectPath(projectPath))
             }
         }
 
@@ -402,35 +396,56 @@ class AffectedModuleDetectorWrapper : AffectedModuleDetector(logger = null) {
 abstract class AffectedModuleDetectorLoader :
     BuildService<AffectedModuleDetectorLoader.Parameters> {
     interface Parameters : BuildServiceParameters {
-        var acceptAll: Boolean
-        var projectGraph: ProjectGraph
-        var dependencyTracker: DependencyTracker
-        var log: FileLogger
-        var ignoreUnknownProjects: Boolean
-        var projectSubset: ProjectSubset
-        var modules: Set<String>?
-        var gitChangedFilesProvider: Provider<List<String>>
-        var config: AffectedModuleConfiguration
-        val gitRoot: DirectoryProperty
+        val acceptAll: Property<Boolean>
+        val projectGraph: Property<ProjectGraph>
+        val dependencyTracker: Property<DependencyTracker>
+        val logFile: RegularFileProperty
+        val ignoreUnknownProjects: Property<Boolean>
+        val projectSubset: Property<ProjectSubset>
+        val modules: ListProperty<String>
+        val gitChangedFilesProvider: Property<Provider<List<String>>>
+        val config: Property<AffectedModuleConfiguration>
+        // workingDir is used to locate the git root inside the service, avoiding a
+        // filesystem walk at configuration time.
+        val workingDir: DirectoryProperty
     }
 
     val detector: AffectedModuleDetector by lazy {
-        val logger = parameters.log.toLogger()
-        if (parameters.acceptAll) {
+        val logFile = parameters.logFile.orNull?.asFile
+        if (logFile != null) {
+            logFile.parentFile?.mkdirs()
+            if (!logFile.exists()) logFile.createNewFile()
+        }
+        val logger = logFile?.let { FileLogger(it).toLogger() }
+
+        if (parameters.acceptAll.get()) {
             AcceptAll(logger)
         } else {
+            val workingDir = parameters.workingDir.get().asFile
+            val gitRoot = findGitDirInParentFilepath(workingDir) ?: workingDir
             AffectedModuleDetectorImpl(
-                projectGraph = parameters.projectGraph,
-                dependencyTracker = parameters.dependencyTracker,
+                projectGraph = parameters.projectGraph.get(),
+                dependencyTracker = parameters.dependencyTracker.get(),
                 logger = logger,
-                ignoreUnknownProjects = parameters.ignoreUnknownProjects,
-                projectSubset = parameters.projectSubset,
-                modules = parameters.modules,
-                config = parameters.config,
-                changedFilesProvider = parameters.gitChangedFilesProvider,
-                gitRoot = parameters.gitRoot.get().asFile
+                ignoreUnknownProjects = parameters.ignoreUnknownProjects.get(),
+                projectSubset = parameters.projectSubset.get(),
+                modules = parameters.modules.orNull?.toSet()?.takeIf { it.isNotEmpty() },
+                config = parameters.config.get(),
+                changedFilesProvider = parameters.gitChangedFilesProvider.get(),
+                gitRoot = gitRoot
             )
         }
+    }
+
+    private fun findGitDirInParentFilepath(filepath: File): File? {
+        var curDirectory: File = filepath
+        while (curDirectory.path != "/") {
+            if (File("$curDirectory/.git").exists()) {
+                return curDirectory
+            }
+            curDirectory = curDirectory.parentFile
+        }
+        return null
     }
 }
 
