@@ -268,6 +268,7 @@ class AffectedModuleDetectorPlugin : Plugin<Project> {
 
         private const val PLUGIN_ANDROID_APPLICATION = "com.android.application"
         private const val PLUGIN_ANDROID_LIBRARY = "com.android.library"
+        private const val PLUGIN_ANDROID_DYNAMIC_FEATURE = "com.android.dynamic-feature"
         private const val PLUGIN_JAVA_LIBRARY = "java"
         private const val PLUGIN_KOTLIN = "kotlin"
 
@@ -276,6 +277,7 @@ class AffectedModuleDetectorPlugin : Plugin<Project> {
         private val pluginIds = listOf(
             PLUGIN_ANDROID_APPLICATION,
             PLUGIN_ANDROID_LIBRARY,
+            PLUGIN_ANDROID_DYNAMIC_FEATURE,
             PLUGIN_JAVA_LIBRARY,
             PLUGIN_KOTLIN
         )

@@ -48,8 +48,41 @@ class DependencyTracker(rootProject: Project, logger: Logger?) : Serializable {
                             .add(project.projectPath)
                     }
             }
+            // android.dynamicFeatures is an AGP DSL property, not a Gradle ProjectDependency,
+            // so it is invisible to the configuration scan above. Read it via reflection and
+            // add reverse edges: DFM change → base app is a dependent, and base app change
+            // → DFMs are dependents. The reflection call is safe on non-application modules
+            // because LibraryExtension and DynamicFeatureExtension do not expose
+            // getDynamicFeatures(), so they always return an empty set.
+            dynamicFeaturePaths(project, logger).forEach { dfmPath ->
+                logger?.info(
+                    "there is a dynamic-feature dependency from ${project.projectPath} to $dfmPath"
+                )
+                result.getOrPut(ProjectPath(dfmPath)) { mutableSetOf() }
+                    .add(project.projectPath)
+            }
         }
         result
+    }
+
+    private fun dynamicFeaturePaths(project: Project, logger: Logger?): Set<String> {
+        val android = project.extensions.findByName("android") ?: return emptySet()
+        val raw = runCatching {
+            android.javaClass.methods
+                .firstOrNull { it.name == "getDynamicFeatures" && it.parameterCount == 0 }
+                ?.invoke(android)
+        }.getOrElse { e ->
+            logger?.warn(
+                "DependencyTracker: getDynamicFeatures reflection failed on ${project.path}; " +
+                    "dynamic-feature graph edges will be absent",
+                e,
+            )
+            null
+        }
+        if (raw !is Collection<*>) return emptySet()
+        return raw.filterIsInstance<String>().mapTo(linkedSetOf()) {
+            if (it.startsWith(":")) it else ":$it"
+        }
     }
 
     fun findAllDependents(projectPath: ProjectPath, logger: Logger? = null): Set<ProjectPath> {
