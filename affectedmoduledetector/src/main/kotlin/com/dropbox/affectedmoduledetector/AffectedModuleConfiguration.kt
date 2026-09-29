@@ -46,6 +46,13 @@ class AffectedModuleConfiguration : Serializable {
     var customTasks = emptySet<CustomTask>()
 
     /**
+     * Predicates used while building the project dependency graph to decide whether each
+     * project-dependency edge should be considered. All predicates are AND'd together; an empty
+     * list (the default) includes every edge.
+     */
+    var dependencyPredicates: List<DependencyPredicate> = emptyList()
+
+    /**
      * Folder to place the log in
      */
     var logFolder: String? = null

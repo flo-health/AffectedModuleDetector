@@ -1,6 +1,9 @@
 package com.dropbox.affectedmoduledetector
 
 import com.google.common.truth.Truth.assertThat
+import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ProjectDependency
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -10,7 +13,12 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
+import org.mockito.kotlin.mock
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
 
 @RunWith(JUnit4::class)
 class AffectedModuleConfigurationTest {
@@ -375,5 +383,80 @@ class AffectedModuleConfigurationTest {
 
         // THEN
         assertFalse(actual)
+    }
+
+    @Test
+    fun `GIVEN AffectedModuleConfiguration WHEN dependency predicates are set THEN all must pass`() {
+        // GIVEN
+        val configuration = mock<Configuration>()
+        val dependent = mock<Project>()
+        val dependency = mock<ProjectDependency>()
+        config.dependencyPredicates = listOf(
+            AlwaysTruePredicate(),
+            AlwaysFalsePredicate(),
+        )
+
+        // WHEN
+        val actual = config.dependencyPredicates.all {
+            it.test(configuration, dependent, dependency)
+        }
+
+        // THEN
+        assertFalse(actual)
+    }
+
+    @Test
+    fun `GIVEN AffectedModuleConfiguration WHEN dependency predicates are not set THEN is empty`() {
+        // GIVEN default configuration
+
+        // WHEN
+        val actual = config.dependencyPredicates
+
+        // THEN
+        assertThat(actual).isEmpty()
+    }
+
+    @Test
+    fun `GIVEN AffectedModuleConfiguration WHEN serialized with serializable predicates THEN predicates are restored`() {
+        // GIVEN
+        config.dependencyPredicates = listOf(AlwaysFalsePredicate())
+        config.logFilename = "serialized.log"
+
+        // WHEN
+        val bytes = ByteArrayOutputStream().use { byteStream ->
+            ObjectOutputStream(byteStream).use { it.writeObject(config) }
+            byteStream.toByteArray()
+        }
+        val deserialized = ObjectInputStream(ByteArrayInputStream(bytes)).use {
+            it.readObject() as AffectedModuleConfiguration
+        }
+
+        // THEN
+        assertThat(deserialized.logFilename).isEqualTo("serialized.log")
+        assertThat(deserialized.dependencyPredicates).hasSize(1)
+        val configuration = mock<Configuration>()
+        val dependent = mock<Project>()
+        val dependency = mock<ProjectDependency>()
+        assertFalse(
+            deserialized.dependencyPredicates.all {
+                it.test(configuration, dependent, dependency)
+            }
+        )
+    }
+
+    private class AlwaysTruePredicate : DependencyPredicate {
+        override fun test(
+            configuration: Configuration,
+            dependent: Project,
+            dependency: ProjectDependency,
+        ): Boolean = true
+    }
+
+    private class AlwaysFalsePredicate : DependencyPredicate {
+        override fun test(
+            configuration: Configuration,
+            dependent: Project,
+            dependency: ProjectDependency,
+        ): Boolean = false
     }
 }

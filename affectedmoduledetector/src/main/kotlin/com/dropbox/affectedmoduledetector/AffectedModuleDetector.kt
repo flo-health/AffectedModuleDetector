@@ -215,7 +215,11 @@ abstract class AffectedModuleDetector(protected val logger: Logger?) {
 
             logger.lifecycle("projects evaluated")
             val projectGraph = ProjectGraph(rootProject, logger.toLogger())
-            val dependencyTracker = DependencyTracker(rootProject, logger.toLogger())
+            val dependencyTracker = DependencyTracker(
+                rootProject,
+                logger.toLogger(),
+                config.dependencyPredicates,
+            )
             val provider = setupWithParams(rootProject) { spec ->
                 val parameters = spec.parameters
                 parameters.acceptAll = false

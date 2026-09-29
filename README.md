@@ -101,6 +101,13 @@ affectedModuleDetector {
             "Run static analysis tool without auto-correction by Impact analysis"
         )
     ]
+    dependencyPredicates = [
+        new DependencyPredicate() {
+            boolean test(configuration, dependent, dependency) {
+                return !configuration.name.contains("ignoreThisConfiguration")
+            }
+        }
+    ]
 }
 ```
 
@@ -124,6 +131,8 @@ affectedModuleDetector {
  - `includeUncommitted`: If uncommitted files should be considered affected
  - `top`: The top of the git log to use. Must be used in combination with configuration `includeUncommitted = false`
  - `customTasks`: set of [CustomTask](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/AffectedModuleConfiguration.kt)
+ - `dependencyPredicates`: A list of [DependencyPredicate](https://github.com/flo-health/AffectedModuleDetector/blob/main/affectedmoduledetector/src/main/kotlin/com/dropbox/affectedmoduledetector/DependencyPredicate.kt)
+    instances that decide whether each project-dependency edge is included when building the dependency graph.
 
  By default, the Detector will look for `assembleAndroidDebugTest`, `connectedAndroidDebugTest`, and `testDebug`.  Modules can specify a configuration block to specify which variant tests to run:
  ```groovy

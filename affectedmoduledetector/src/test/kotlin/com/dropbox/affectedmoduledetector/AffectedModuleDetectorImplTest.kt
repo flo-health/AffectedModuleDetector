@@ -1773,6 +1773,146 @@ class AffectedModuleDetectorImplTest {
         )
     }
 
+    @Test
+    fun `GIVEN upward configuration reference from p2 to p6 WHEN no predicate is supplied THEN p2 is affected`() {
+        p2.configurations.create("p2-upward-p6") { config ->
+            config.dependencies.add(p2.dependencies.project(mapOf("path" to p6.path)))
+        }
+        val dependencyTracker = DependencyTracker(root, null)
+        val detector = AffectedModuleDetectorImpl(
+            projectGraph = rootProjectGraph,
+            dependencyTracker = dependencyTracker,
+            logger = logger.toLogger(),
+            ignoreUnknownProjects = false,
+            projectSubset = ProjectSubset.ALL_AFFECTED_PROJECTS,
+            modules = null,
+            changedFilesProvider = MockGitClient(
+                changedFiles = listOf(
+                    convertToFilePath("d1/d3/d6", "foo.java")
+                ),
+                tmpFolder = tmpFolder.root
+            ).findChangedFiles(root),
+            gitRoot = tmpFolder.root,
+            config = affectedModuleConfiguration
+        )
+        Truth.assertThat(detector.shouldInclude(p2.projectPath)).isTrue()
+        Truth.assertThat(detector.shouldInclude(p6.projectPath)).isTrue()
+    }
+
+    @Test
+    fun `GIVEN upward configuration reference from p2 to p6 WHEN predicate filtered THEN p2 is unaffected`() {
+        p2.configurations.create("p2-upward-p6") { config ->
+            config.dependencies.add(p2.dependencies.project(mapOf("path" to p6.path)))
+        }
+        val predicates = listOf(
+            DependencyPredicate { configuration, _, _ ->
+                !configuration.name.contains("-upward-")
+            }
+        )
+        val dependencyTracker = DependencyTracker(root, null, predicates)
+        val detector = AffectedModuleDetectorImpl(
+            projectGraph = rootProjectGraph,
+            dependencyTracker = dependencyTracker,
+            logger = logger.toLogger(),
+            ignoreUnknownProjects = false,
+            projectSubset = ProjectSubset.ALL_AFFECTED_PROJECTS,
+            modules = null,
+            changedFilesProvider = MockGitClient(
+                changedFiles = listOf(
+                    convertToFilePath("d1/d3/d6", "foo.java")
+                ),
+                tmpFolder = tmpFolder.root
+            ).findChangedFiles(root),
+            gitRoot = tmpFolder.root,
+            config = affectedModuleConfiguration
+        )
+        Truth.assertThat(detector.shouldInclude(p2.projectPath)).isFalse()
+        Truth.assertThat(detector.shouldInclude(p6.projectPath)).isTrue()
+    }
+
+    @Test
+    fun `GIVEN one configuration with two project deps WHEN predicate filters by dependency path THEN only kept edge affects`() {
+        // p5 already depends on p2 and p3 via p5config. Filter out the edge to p3 only.
+        val predicates = listOf(
+            DependencyPredicate { _, dependent, dependency ->
+                !(dependent.path == p5.path && dependency.path == p3.path)
+            }
+        )
+        val dependencyTracker = DependencyTracker(root, null, predicates)
+        val detector = AffectedModuleDetectorImpl(
+            projectGraph = rootProjectGraph,
+            dependencyTracker = dependencyTracker,
+            logger = logger.toLogger(),
+            ignoreUnknownProjects = false,
+            projectSubset = ProjectSubset.ALL_AFFECTED_PROJECTS,
+            modules = null,
+            changedFilesProvider = MockGitClient(
+                changedFiles = listOf(
+                    convertToFilePath("d1/d3", "foo.java")
+                ),
+                tmpFolder = tmpFolder.root
+            ).findChangedFiles(root),
+            gitRoot = tmpFolder.root,
+            config = affectedModuleConfiguration
+        )
+        // p3 changed; p4 still depends on p3 so remains affected. p5's edge to p3 was filtered.
+        Truth.assertThat(detector.shouldInclude(p3.projectPath)).isTrue()
+        Truth.assertThat(detector.shouldInclude(p4.projectPath)).isTrue()
+        Truth.assertThat(detector.shouldInclude(p5.projectPath)).isFalse()
+
+        val detectorForP2Change = AffectedModuleDetectorImpl(
+            projectGraph = rootProjectGraph,
+            dependencyTracker = dependencyTracker,
+            logger = logger.toLogger(),
+            ignoreUnknownProjects = false,
+            projectSubset = ProjectSubset.ALL_AFFECTED_PROJECTS,
+            modules = null,
+            changedFilesProvider = MockGitClient(
+                changedFiles = listOf(
+                    convertToFilePath("d2", "foo.java")
+                ),
+                tmpFolder = tmpFolder.root
+            ).findChangedFiles(root),
+            gitRoot = tmpFolder.root,
+            config = affectedModuleConfiguration
+        )
+        // p5's edge to p2 was kept, so a change in p2 still affects p5.
+        Truth.assertThat(detectorForP2Change.shouldInclude(p2.projectPath)).isTrue()
+        Truth.assertThat(detectorForP2Change.shouldInclude(p5.projectPath)).isTrue()
+    }
+
+    @Test
+    fun `GIVEN multiple predicates WHEN one rejects the edge THEN edge is dropped`() {
+        p2.configurations.create("p2-upward-p6") { config ->
+            config.dependencies.add(p2.dependencies.project(mapOf("path" to p6.path)))
+        }
+        val predicates = listOf(
+            DependencyPredicate { _, _, _ -> true },
+            DependencyPredicate { configuration, _, _ ->
+                !configuration.name.contains("-upward-")
+            },
+        )
+        val dependencyTracker = DependencyTracker(root, null, predicates)
+        val detector = AffectedModuleDetectorImpl(
+            projectGraph = rootProjectGraph,
+            dependencyTracker = dependencyTracker,
+            logger = logger.toLogger(),
+            ignoreUnknownProjects = false,
+            projectSubset = ProjectSubset.ALL_AFFECTED_PROJECTS,
+            modules = null,
+            changedFilesProvider = MockGitClient(
+                changedFiles = listOf(
+                    convertToFilePath("d1/d3/d6", "foo.java")
+                ),
+                tmpFolder = tmpFolder.root
+            ).findChangedFiles(root),
+            gitRoot = tmpFolder.root,
+            config = affectedModuleConfiguration
+        )
+        Truth.assertThat(detector.shouldInclude(p2.projectPath)).isFalse()
+        Truth.assertThat(detector.shouldInclude(p6.projectPath)).isTrue()
+    }
+
     // For both Linux/Windows
     fun convertToFilePath(vararg list: String): String {
         return list.toList().joinToString(File.separator)
