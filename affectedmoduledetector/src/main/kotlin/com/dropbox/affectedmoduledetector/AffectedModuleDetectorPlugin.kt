@@ -224,7 +224,8 @@ class AffectedModuleDetectorPlugin : Plugin<Project> {
     }
 
     private fun filterAndroidTests(project: Project) {
-        val tracker = DependencyTracker(project, null)
+        val config = requireConfiguration(project)
+        val tracker = DependencyTracker(project, null, config.dependencyPredicates)
         project.tasks.configureEach { task ->
             if (task.name.contains(ANDROID_TEST_PATTERN)) {
                 tracker.findAllDependents(project.projectPath, null).forEach { dependentProject ->
