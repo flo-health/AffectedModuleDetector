@@ -1,4 +1,4 @@
-import com.dropbox.sample.Dependencies
+import health.flo.sample.Dependencies
 
 plugins {
     id 'com.android.application'
@@ -11,12 +11,12 @@ affectedTestConfiguration {
 
 
 android {
-    namespace "com.dropbox.detector.sample"
+    namespace "health.flo.detector.sample"
 
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.dropbox.detector.sample"
+        applicationId "health.flo.detector.sample"
         minSdkVersion 23
         targetSdkVersion 34
         versionCode 1

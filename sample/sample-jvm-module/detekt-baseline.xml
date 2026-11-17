@@ -3,7 +3,7 @@
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
     <ID>EmptyClassBlock:MyClass.kt$MyClass${ }</ID>
-    <ID>NewLineAtEndOfFile:MyClass.kt$com.dropbox.sample_jvm_module.MyClass.kt</ID>
-    <ID>PackageNaming:MyClass.kt$package com.dropbox.sample_jvm_module</ID>
+    <ID>NewLineAtEndOfFile:MyClass.kt$health.flo.sample_jvm_module.MyClass.kt</ID>
+    <ID>PackageNaming:MyClass.kt$package health.flo.sample_jvm_module</ID>
   </CurrentIssues>
 </SmellBaseline>

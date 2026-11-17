@@ -1,5 +1,5 @@
-import com.dropbox.affectedmoduledetector.AffectedModuleConfiguration
-import com.dropbox.sample.Dependencies
+import health.flo.affectedmoduledetector.AffectedModuleConfiguration
+import health.flo.sample.Dependencies
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
