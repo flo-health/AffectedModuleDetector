@@ -119,7 +119,7 @@ internal class GitClientImpl(
     }
 }
 
-private class RealCommandRunner(
+internal class RealCommandRunner(
     private val workingDir: File,
     private val logger: Logger?
 ) : GitClient.CommandRunner {
@@ -149,7 +149,9 @@ private class RealCommandRunner(
         } else {
             logger?.info("Response: $message")
         }
-        check(proc.exitValue() == 0) { "Nonzero exit value running git command." }
+        check(proc.exitValue() == 0) {
+            "Nonzero exit value (${proc.exitValue()}) running git command '$command' in $workingDir:\n${stderr.trim().ifEmpty { "<no stderr>" }}"
+        }
         return stdout
     }
 
